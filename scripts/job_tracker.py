@@ -9,7 +9,7 @@ import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, urlencode, urlparse
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 DEFAULT_STATE_FILE = SKILL_DIR / "state" / "seen_jobs.json"
@@ -20,37 +20,58 @@ JOB_ID_PATTERNS = [
     re.compile(r"/jobs/collections/[^/?#]+/(\d{6,})(?:[/?#]|$)"),
 ]
 
+KEEP_QUERY_PARAMS = {
+    "id",
+    "jobid",
+    "job_id",
+    "gh_jid",
+    "requisitionid",
+    "reqid",
+    "postingid",
+    "vacancyid",
+    "jid",
+}
+
 
 def now_iso() -> str:
     return datetime.now(WIB).isoformat(timespec="seconds")
 
 
 def extract_job_key(url: str) -> tuple[str, str]:
-    """Return (dedup_key, canonical_url) for a LinkedIn job URL."""
+    """Return (dedup_key, canonical_url) for LinkedIn or non-LinkedIn job URLs."""
     raw = (url or "").strip()
     if not raw:
         return "", ""
 
     parsed = urlparse(raw)
+    host = parsed.netloc.lower()
     query = parse_qs(parsed.query)
 
-    # Check query param currentJobId (e.g. /jobs/search-results/?currentJobId=4412345678)
-    for param in ("currentJobId", "jobId"):
-        if param in query and query[param]:
-            digits = re.sub(r"\D", "", query[param][0])
-            if len(digits) >= 6:
-                return f"li:{digits}", f"https://www.linkedin.com/jobs/view/{digits}/"
+    # LinkedIn-specific canonicalization
+    if "linkedin.com" in host:
+        for param in ("currentJobId", "jobId"):
+            if param in query and query[param]:
+                digits = re.sub(r"\D", "", query[param][0])
+                if len(digits) >= 6:
+                    return f"li:{digits}", f"https://www.linkedin.com/jobs/view/{digits}/"
 
-    # Check path patterns (e.g. /jobs/view/intern-title-4412345678)
-    for pattern in JOB_ID_PATTERNS:
-        match = pattern.search(parsed.path)
-        if match:
-            job_id = match.group(1)
-            return f"li:{job_id}", f"https://www.linkedin.com/jobs/view/{job_id}/"
+        for pattern in JOB_ID_PATTERNS:
+            match = pattern.search(parsed.path)
+            if match:
+                job_id = match.group(1)
+                return f"li:{job_id}", f"https://www.linkedin.com/jobs/view/{job_id}/"
 
-    # Fallback: normalized URL without query/fragment
+    # Multi-source fallback: normalize host/path and keep only meaningful job-ID query params
     clean_path = parsed.path.rstrip("/")
-    normalized = f"{parsed.scheme or 'https'}://{parsed.netloc.lower()}{clean_path}"
+    kept_params = []
+    for k in sorted(query.keys()):
+        if k.lower() in KEEP_QUERY_PARAMS and query[k]:
+            kept_params.append((k.lower(), query[k][0].strip()))
+
+    scheme = parsed.scheme or "https"
+    normalized = f"{scheme}://{host}{clean_path}"
+    if kept_params:
+        normalized = f"{normalized}?{urlencode(kept_params)}"
     return f"url:{normalized}", normalized
 
 
@@ -125,6 +146,8 @@ def cmd_filter(args: argparse.Namespace) -> int:
                 "title": str(item.get("title", "")).strip(),
                 "company": str(item.get("company", "")).strip(),
                 "location": str(item.get("location", "")).strip(),
+                "type": str(item.get("type", "")).strip(),
+                "source": str(item.get("source", "")).strip(),
                 "url": canonical_url,
                 "first_seen": timestamp,
             }

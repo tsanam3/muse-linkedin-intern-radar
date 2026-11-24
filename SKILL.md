@@ -1,75 +1,90 @@
-# LinkedIn Intern Job Radar
+# Intern & Project Job Radar (Multi-Source)
 
 ## When to use
 
-- Use this skill when the user asks to check new LinkedIn internship, trainee, or apprenticeship listings, runs their daily job digest, or wants to update their internship criteria.
-- Do NOT use this skill for general LinkedIn social posts or people search unless the user specifically asks for job listings.
+- Use this skill when the user asks to check new internship, trainee, apprenticeship, daily worker, or open project opportunities, runs their daily job digest, or wants to update their criteria.
+- Do NOT use this skill for general social posts or people search unless the user specifically asks for job/project listings.
 
 ## Safety & Read-only rules
 
-- **Zero LinkedIn login**: Never ask for, store, or use the user's LinkedIn password, session cookies, or account credentials.
-- **No direct scraping**: Never run Playwright, Selenium, curl, or automated browsers against `linkedin.com` directly.
-- **Built-in web search only**: Always use Muse's built-in web search targeting publicly indexed LinkedIn job pages (`site:linkedin.com/jobs/view` and `site:id.linkedin.com/jobs/view`).
-- **Read-only**: Never apply to jobs, message recruiters, or perform any write action on LinkedIn.
+- **Zero account login**: Never ask for, store, or use the user's LinkedIn, JobStreet, Glints, or other job-board passwords, session cookies, or credentials.
+- **No direct scraping**: Never run Playwright, Selenium, curl, or automated browsers against login-walled job sites.
+- **Built-in web search only**: Always use Muse's built-in web search targeting publicly accessible job listings across LinkedIn, company career portals, Indonesian job boards, and legitimate project/daily-worker platforms.
+- **Read-only**: Never apply to jobs, submit forms, message recruiters, or perform any write action on external platforms.
 
 ## Skill directory layout
 
 All paths below are relative to this skill's folder (`~/workspace/custom-skills/linkedin_intern_radar/`):
 
-- `profile.md` — User's target roles, fields, locations, background, and red flags.
-- `scripts/job_tracker.py` — Zero-dependency Python 3 script for LinkedIn Job ID canonicalization and deduplication.
-- `state/seen_jobs.json` — Automatically managed local state of previously reported jobs.
+- `profile.md` — User's target opportunity types, fields, locations, background, and red flags.
+- `scripts/job_tracker.py` — Zero-dependency Python 3 script for URL/Job ID canonicalization and deduplication across LinkedIn and non-LinkedIn sources.
+- `state/seen_jobs.json` — Automatically managed local state of previously reported listings.
 - `reports/YYYY-MM-DD.md` — Saved daily digest files.
 
 ## Step-by-step workflow
 
 ### 1. Read user preferences
-- Read `profile.md` first. If the user asks to change keywords, locations, or preferences, update `profile.md` before searching.
+- Read `profile.md` first. If the user asks to change keywords, locations, opportunity types, or preferences, update `profile.md` before searching.
 
-### 2. Run focused web searches (3–5 queries max)
-- Build 3 to 5 concise queries using Muse's built-in web search, combining `site:linkedin.com/jobs/view` (or `site:id.linkedin.com/jobs/view`) with the user's target roles, fields, and location from `profile.md`.
-- Include the current month/year or recency cues when helpful so fresh listings surface first.
-- Example query patterns:
-  - `site:linkedin.com/jobs/view ("intern" OR "internship" OR "magang") ("electrical" OR "elektro" OR "instrumentation") Indonesia`
-  - `site:linkedin.com/jobs/view ("intern" OR "internship" OR "magang") ("automation" OR "engineering" OR "maintenance" OR "project") ("electrical" OR "engineering") Indonesia`
-  - `site:linkedin.com/jobs/view ("trainee" OR "apprenticeship" OR "intern") ("data center" OR "energy" OR "manufacturing" OR "oil") Indonesia`
-  - `site:id.linkedin.com/jobs/view ("intern" OR "magang") ("electrical" OR "teknik elektro" OR "engineering" OR "instrumentation") Indonesia`
-- Keep queries scoped and low-volume; avoid running dozens of repetitive searches.
+### 2. Run focused multi-source web searches (5–6 natural queries)
+- **IMPORTANT — Keep queries simple and natural!** Do NOT combine deep path operators like `site:linkedin.com/jobs/view` with nested `OR` parentheses (many search engines return 0 results for complex boolean strings).
+- Run 5 to 6 concise, natural-language queries covering multiple sources and opportunity types from `profile.md`, including the current year/month when helpful for freshness:
+  1. **LinkedIn public jobs (simple query)**:
+     `linkedin jobs intern electrical engineering automation Indonesia 2026`
+  2. **Company career portals & ATS (E&I / Automation / Energy / Manufacturing)**:
+     `internship electrical instrumentation automation engineering Indonesia careers 2026`
+  3. **Trainee / DCEO / Energy / Utilities**:
+     `engineering trainee DCEO apprenticeship Indonesia Siemens Schneider Pertamina AWS 2026`
+  4. **Indonesian job boards & campus career centers**:
+     `magang teknik elektro engineering Indonesia jobstreet glints kalibrr dealls 2026`
+  5. **Broad Tech / Data / IoT intern open to Engineering**:
+     `internship data engineering IoT embedded cybersecurity Indonesia 2026`
+  6. **Daily worker / Open project / Part-time / Freelance**:
+     `daily worker part time open project electrical engineering technician data Indonesia 2026`
+- Rotate or vary 1–2 keywords across runs (e.g., Cikarang, Semarang, Jakarta, Batam, EPC, PLC, SCADA, research assistant, CAD) so fresh listings surface without hammering search.
+- Only include actual job/project/career listing URLs (skip generic news articles, random LinkedIn feed posts without an actual vacancy link, or homepage-only URLs unless it's a direct active listing).
 
-### 3. Deduplicate against previously seen jobs
-- Collect the candidate listings into a JSON array with fields: `title`, `company`, `location`, `url`, `snippet`, `posted_hint`.
+### 3. Deduplicate against previously seen listings
+- Collect candidate listings into a JSON array with fields: `title`, `company`, `location`, `type` (`Intern`, `Trainee`, `Daily Worker`, or `Open Project`), `source` (e.g., `LinkedIn`, `Siemens Careers`, `Glints`, `JobStreet`, `ITB Career Center`), `url`, `snippet`, `posted_hint`.
 - Pipe the JSON into the tracker script in a single shell call:
   ```bash
   python3 ~/workspace/custom-skills/linkedin_intern_radar/scripts/job_tracker.py filter --mark-seen <<'EOF'
   [
     {
-      "title": "Intern - Automation Design Engineer",
-      "company": "Schneider Electric",
-      "location": "Cikarang Barat, West Java, Indonesia",
-      "url": "https://www.linkedin.com/jobs/view/intern-automation-design-engineer-at-schneider-electric-4412345678",
-      "snippet": "On-site, Temporary internship in automation design...",
+      "title": "Production Technician Intern",
+      "company": "Siemens",
+      "location": "Jakarta, Indonesia",
+      "type": "Intern",
+      "source": "Siemens Careers",
+      "url": "https://jobs.siemens.com/careers/job/563156123456",
+      "snippet": "Internship opportunity for Electrical/Engineering students in Jakarta...",
       "posted_hint": "recent"
     }
   ]
   EOF
   ```
-- The script normalizes URLs by extracting the canonical LinkedIn numeric Job ID (so `id.linkedin.com` and `www.linkedin.com` links to the same job are treated as duplicates) and returns **only new jobs** that have not been reported before.
+- The script canonicalizes both LinkedIn Job IDs (`li:<id>`) and non-LinkedIn URLs (`url:<normalized>` with tracking parameters stripped while preserving meaningful job ID query params) and returns **only new listings** that have not been reported before.
 - If the user explicitly asks to "re-check all" without updating state, omit `--mark-seen`.
 
-### 4. Score job fit (LinkedIn Premium-style match check)
-- Compare each **new** job against `profile.md` (especially the **Openness Rule**) and assign a match tier:
-  - **High Match**: Intern/Magang/Trainee/Apprenticeship in Indonesia open to Electrical Engineering (Semester 7 / final-year) students, especially in Electrical, Instrumentation (E&I), Automation, Engineering Operations, Energy/Oil & Gas, Manufacturing, Data Center (DCEO), or Project Engineering.
-  - **Medium Match**: Broad engineering, tech, data, or STEM internships in Indonesia where Electrical Engineering students are eligible or likely accepted even if outside the user's core track, or roles with minor caveats (e.g., fresh-graduate phrasing that may accept final-year students).
-  - **Low Match**: Non-intern full-time roles requiring 2+ years experience, completely unrelated majors (e.g., Accounting/Law/Nursing), or clearly expired listings. Omit Low Match from the report unless zero High/Medium jobs were found.
-- For every High/Medium job, write a concise 1-sentence reason explaining why it fits the user's background (e.g., relevant to Electrical Engineering / Pertamina E&I experience / open for Sem 7) and any caveats (on-site city, duration, etc.).
+### 4. Score opportunity fit
+- Compare each **new** listing against `profile.md` (especially the **Openness Rule**) and assign a match tier:
+  - **High Match**:
+    - Intern / Magang / Trainee / Apprenticeship in Indonesia open to Electrical Engineering (Semester 7 / final-year), especially in Electrical, Instrumentation (E&I), Automation, Engineering Operations, Energy/Oil & Gas, Manufacturing, Data Center (DCEO), or Project Engineering.
+    - Daily Worker / Open Project / Part-time that is directly linear (electrical, instrumentation, automation, engineering support, technical documentation, data/IoT) and clearly legitimate + worth applying to.
+  - **Medium Match**:
+    - Broad engineering, tech, data, or STEM internships in Indonesia where Electrical Engineering students are eligible or likely accepted, or roles with minor caveats (e.g., fresh-graduate phrasing that may accept final-year students).
+    - Cross-discipline Daily Worker / Part-time / Open Project that a Semester 7 student can realistically apply to and looks worth it (good pay, reputable company/organization, or valuable experience/network).
+  - **Low Match**:
+    - Non-intern full-time roles requiring 2+ years experience, completely unrelated majors (e.g., Accounting/Law/Nursing), suspicious/scam listings, or clearly expired vacancies. Omit Low Match from the report unless zero High/Medium listings were found.
+- For every High/Medium listing, write a concise 1-sentence reason explaining why it fits the user's background or why it's worth applying to, plus any caveats (on-site city, duration, unpaid note, deadline if visible).
 
 ### 5. Save and present the daily report
 - Save the digest to `reports/YYYY-MM-DD.md` (using today's local date).
 - Present the report in the user's preferred language from `profile.md` (default: Bahasa Indonesia) with this clean format:
-  - Header: date + count of new jobs found vs. duplicates skipped.
+  - Header: date + count of new listings found vs. duplicates skipped.
   - Sections: `🔥 High Match` and `👍 Medium Match`.
-  - Per job: **Role — Company** (`Location`), 1-sentence fit note, and direct `https://www.linkedin.com/jobs/view/<id>/` link.
-- **No hallucination**: Never invent jobs, companies, or LinkedIn URLs. If 0 new jobs remain after deduplication, reply honestly: *"Belum ada loker intern baru yang cocok sejak pengecekan terakhir."*
+  - Per listing: **`[Type]` Role — Company** (`Location` · *Source*), 1-sentence fit note, and direct clickable URL.
+- **No hallucination**: Never invent jobs, companies, deadlines, or URLs. Every URL must come directly from the web search results. If 0 new matching listings remain after deduplication, reply honestly: *"Belum ada loker intern / daily worker / open project baru yang cocok sejak pengecekan terakhir."*
 
 ## Maintenance commands
 
@@ -80,4 +95,4 @@ All paths below are relative to this skill's folder (`~/workspace/custom-skills/
 
 ## Daily schedule (1x sehari)
 
-- If the user asks for automatic daily reports (default: 1x per day in the evening, e.g., 19:00 WIB), set up a recurring daily task/reminder in Muse that runs this skill once a day and sends the digest only when new matching jobs are found (or a short "tidak ada loker baru hari ini" note if the user prefers confirmation).
+- If the user asks for automatic daily reports (default: 1x per day at 19:00 WIB), run this skill once a day and send the digest (or a short note if no new listings were found).

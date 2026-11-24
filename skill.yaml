@@ -1,5 +1,5 @@
 name: "linkedin_intern_radar"
-title: "LinkedIn Intern Job Radar"
-description: "Monitor new LinkedIn internship, trainee, and apprenticeship listings matching the user's profile using built-in web search, with local Job ID deduplication and match scoring."
+title: "Intern & Project Job Radar"
+description: "Monitor new internship, trainee, apprenticeship, daily worker, and open project opportunities across LinkedIn, company career portals, and Indonesian job boards using built-in web search, with local deduplication and match scoring."
 category: "Work and knowledge"
 include_in_prompt: false
