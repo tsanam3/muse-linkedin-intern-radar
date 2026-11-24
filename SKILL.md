@@ -45,7 +45,7 @@ All paths below are relative to this skill's folder (`~/workspace/custom-skills/
 - Only include actual job/project/career listing URLs (skip generic news articles, random LinkedIn feed posts without an actual vacancy link, or homepage-only URLs unless it's a direct active listing).
 
 ### 3. Deduplicate against previously seen listings
-- Collect candidate listings into a JSON array with fields: `title`, `company`, `location`, `type` (`Intern`, `Trainee`, `Daily Worker`, or `Open Project`), `source` (e.g., `LinkedIn`, `Siemens Careers`, `Glints`, `JobStreet`, `ITB Career Center`), `url`, `snippet`, `posted_hint`.
+- Collect candidate listings into a JSON array with fields: `title`, `company`, `location`, `type` (`Intern`, `Trainee`, `Daily Worker`, or `Open Project`), `source` (e.g., `LinkedIn`, `Siemens Careers`, `Glints`, `JobStreet`, `ITB Career Center`), `url`, `snippet`, `deadline` (if stated, else `null`), `posted_at` (upload/posting date if stated, else `null`), `last_updated` (last update date if stated, else `null`).
 - Pipe the JSON into the tracker script in a single shell call:
   ```bash
   python3 ~/workspace/custom-skills/linkedin_intern_radar/scripts/job_tracker.py filter --mark-seen <<'EOF'
@@ -58,7 +58,9 @@ All paths below are relative to this skill's folder (`~/workspace/custom-skills/
       "source": "Siemens Careers",
       "url": "https://jobs.siemens.com/careers/job/563156123456",
       "snippet": "Internship opportunity for Electrical/Engineering students in Jakarta...",
-      "posted_hint": "recent"
+      "deadline": null,
+      "posted_at": "2026-11-20",
+      "last_updated": "2026-11-20"
     }
   ]
   EOF
@@ -66,8 +68,12 @@ All paths below are relative to this skill's folder (`~/workspace/custom-skills/
 - The script canonicalizes both LinkedIn Job IDs (`li:<id>`) and non-LinkedIn URLs (`url:<normalized>` with tracking parameters stripped while preserving meaningful job ID query params) and returns **only new listings** that have not been reported before.
 - If the user explicitly asks to "re-check all" without updating state, omit `--mark-seen`.
 
-### 4. Score opportunity fit
-- Compare each **new** listing against `profile.md` (especially the **Openness Rule**) and assign a match tier:
+### 4. Deadline filter & opportunity fit scoring
+- **Strict Deadline & Freshness Check (WAJIB sebelum masuk laporan):**
+  - Cek tanggal hari ini (WIB) dan bandingkan dengan deadline setiap lowongan.
+  - **Buang otomatis** lowongan yang deadline-nya sudah lewat (`deadline < hari ini`) atau tertulis *closed / expired / no longer accepting applications*.
+  - Jika **tidak ada tulisan deadline**: tetap boleh dimasukkan ke laporan selama tidak berstatus tutup/kedaluwarsa, **dengan syarat wajib mencantumkan tanggal upload (`Posted`) dan/atau `Last update`** yang tertera di halaman/snippet sumber (jangan mengarang tanggal; kalau memang tidak tertera, tulis jujur `tidak tercantum`).
+- Compare each valid **new** listing against `profile.md` (especially the **Openness Rule**) and assign a match tier:
   - **High Match**:
     - Intern / Magang / Trainee / Apprenticeship in Indonesia open to Electrical Engineering (Semester 7 / final-year), especially in Electrical, Instrumentation (E&I), Automation, Engineering Operations, Energy/Oil & Gas, Manufacturing, Data Center (DCEO), or Project Engineering.
     - Daily Worker / Open Project / Part-time that is directly linear (electrical, instrumentation, automation, engineering support, technical documentation, data/IoT) and clearly legitimate + worth applying to.
@@ -75,16 +81,19 @@ All paths below are relative to this skill's folder (`~/workspace/custom-skills/
     - Broad engineering, tech, data, or STEM internships in Indonesia where Electrical Engineering students are eligible or likely accepted, or roles with minor caveats (e.g., fresh-graduate phrasing that may accept final-year students).
     - Cross-discipline Daily Worker / Part-time / Open Project that a Semester 7 student can realistically apply to and looks worth it (good pay, reputable company/organization, or valuable experience/network).
   - **Low Match**:
-    - Non-intern full-time roles requiring 2+ years experience, completely unrelated majors (e.g., Accounting/Law/Nursing), suspicious/scam listings, or clearly expired vacancies. Omit Low Match from the report unless zero High/Medium listings were found.
-- For every High/Medium listing, write a concise 1-sentence reason explaining why it fits the user's background or why it's worth applying to, plus any caveats (on-site city, duration, unpaid note, deadline if visible).
+    - Non-intern full-time roles requiring 2+ years experience, completely unrelated majors (e.g., Accounting/Law/Nursing), suspicious/scam listings, or expired/closed vacancies. Omit Low Match from the report unless zero High/Medium listings were found.
+- For every High/Medium listing, write a concise 1-sentence reason explaining why it fits the user's background or why it's worth applying to, plus any caveats (on-site city, duration, unpaid note).
 
 ### 5. Save and present the daily report
 - Save the digest to `reports/YYYY-MM-DD.md` (using today's local date).
 - Present the report in the user's preferred language from `profile.md` (default: Bahasa Indonesia) with this clean format:
-  - Header: date + count of new listings found vs. duplicates skipped.
+  - Header: date + count of new listings found vs. duplicates/expired skipped.
   - Sections: `🔥 High Match` and `👍 Medium Match`.
-  - Per listing: **`[Type]` Role — Company** (`Location` · *Source*), 1-sentence fit note, and direct clickable URL.
-- **No hallucination**: Never invent jobs, companies, deadlines, or URLs. Every URL must come directly from the web search results. If 0 new matching listings remain after deduplication, reply honestly: *"Belum ada loker intern / daily worker / open project baru yang cocok sejak pengecekan terakhir."*
+  - Per listing:
+    - **`[Type]` Role — Company** (`Location` · *Source*)
+    - **Info tanggal (wajib)**: `DL: <tanggal atau tidak tercantum> | Upload: <tanggal atau tidak tercantum> | Last update: <tanggal atau tidak tercantum>`
+    - 1-sentence fit note + direct clickable URL.
+- **No hallucination**: Never invent jobs, companies, deadlines, posting dates, or URLs. Every URL and date must come directly from the search results/listing page. If 0 new matching listings remain after deduplication & deadline filtering, reply honestly: *"Belum ada loker intern / daily worker / open project baru yang masih buka & cocok sejak pengecekan terakhir."*
 
 ## Maintenance commands
 

@@ -51,9 +51,13 @@
 - Wajib pengalaman kerja penuh waktu 2+ atau 3+ tahun
 - Khusus lulusan S1 yang sudah wisuda *kecuali* tertulis mahasiswa tingkat akhir / semester 7–8 boleh melamar (tetap beri catatan kalau ambigu)
 - Lowongan mencurigakan / scam / MLM / wajib bayar biaya pendaftaran
+- **Sudah lewat deadline (DL < tanggal hari ini WIB)** atau berstatus *closed / expired / no longer accepting applications* → **WAJIB dibuang**
 - Unpaid internship (tidak perlu dibuang otomatis, cukup beri catatan jika disebut unpaid)
 
 ## Report Preferences
 - **Frequency**: 1x sehari (19:00 WIB)
 - **Language**: Bahasa Indonesia
 - **Show**: Semua `High Match` & `Medium Match` (beri label tipe `[Intern]`, `[Trainee]`, `[Daily Worker]`, atau `[Open Project]` serta nama sumbernya)
+- **Wajib info tanggal per loker**:
+  - Jika ada deadline yang belum lewat → cantumkan `DL: <tanggal>`
+  - Jika **tidak ada tulisan deadline** → tetap boleh dicantumkan selama tidak berstatus tutup/kadaluwarsa, **wajib beri info tanggal upload/posting dan/atau last update** (atau tulis jujur `tidak tercantum` jika memang tidak ada di halaman sumber, jangan dikarang)
